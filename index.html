@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light" data-fog="normal">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>羽 · 半日闲</title>
+<meta name="description" content="一个安静的个人主页：日程提醒、专注计时、习惯打卡和几句随手记。">
+<meta name="theme-color" content="#EFF5FC">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="preload" as="image" href="bg.jpg">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+
+<div class="scene" aria-hidden="true">
+  <div class="bg-photo"></div>
+  <div class="scrim"></div>
+  <div class="lantern"></div>
+  <div class="mist-band b1"></div>
+  <div class="mist-band b2"></div>
+  <div class="mist-band b3"></div>
+  <div id="fireflies"></div>
+</div>
+
+<header class="nav">
+  <div class="nav-clock">
+    <span class="nowdot">
+      <span class="dot"></span>
+      <svg class="dayring" viewBox="0 0 15 15" aria-hidden="true">
+        <circle id="day-ring" cx="7.5" cy="7.5" r="7" transform="rotate(-90 7.5 7.5)"></circle>
+      </svg>
+    </span>
+    <span id="clock">--:--</span>
+    <span class="sep">·</span>
+    <span class="brand-mini">羽</span>
+    <span class="weather sep">·</span>
+    <span class="weather" id="weather-word">晨雾</span>
+  </div>
+
+  <nav class="nav-links">
+    <a href="#top" class="here">首页</a>
+    <a href="#agenda">日程</a>
+    <a href="#focus">专注</a>
+    <a href="#ritual">打卡</a>
+    <a href="#notes">随记</a>
+    <div class="display">
+      <button class="icon-toggle" id="settings-toggle" aria-expanded="false" aria-controls="display-settings" aria-label="显示设置" title="显示设置">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path>
+          <circle cx="16" cy="7" r="2.2"></circle>
+          <circle cx="10" cy="17" r="2.2"></circle>
+        </svg>
+      </button>
+      <div class="settings" id="display-settings" inert>
+        <p class="settings-cap">显示设置</p>
+        <div class="seg">
+          <span class="seg-k">雾</span>
+          <span class="seg-opts">
+            <label><input type="radio" name="fog" value="thin"><span>淡</span></label>
+            <label><input type="radio" name="fog" value="normal" checked><span>中</span></label>
+            <label><input type="radio" name="fog" value="thick"><span>浓</span></label>
+          </span>
+        </div>
+        <div class="seg">
+          <span class="seg-k">颗粒</span>
+          <span class="seg-opts">
+            <label><input type="radio" name="grain" value="on" checked><span>有</span></label>
+            <label><input type="radio" name="grain" value="off"><span>无</span></label>
+          </span>
+        </div>
+        <div class="seg">
+          <span class="seg-k">花瓣</span>
+          <span class="seg-opts">
+            <label><input type="radio" name="fireflies" value="on" checked><span>有</span></label>
+            <label><input type="radio" name="fireflies" value="off"><span>无</span></label>
+          </span>
+        </div>
+        <div class="seg">
+          <span class="seg-k">入场</span>
+          <span class="seg-opts">
+            <label><input type="radio" name="enter" value="auto" checked><span>自动</span></label>
+            <label><input type="radio" name="enter" value="full"><span>完整</span></label>
+          </span>
+        </div>
+      </div>
+    </div>
+    <button class="icon-toggle" id="theme-toggle" aria-label="切换主题" title="切换主题">
+      <svg id="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="12" cy="12" r="4"></circle>
+        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+      </svg>
+      <svg id="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none">
+        <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"></path>
+      </svg>
+    </button>
+  </nav>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <p class="hero-name">YU · 羽</p>
+    <h1 class="hero-title">
+      <span class="line">
+        <span class="w" style="--i:0"><span>于</span></span>
+        <span class="w" style="--i:1"><span>车水马龙</span></span>
+        <span class="w" style="--i:2"><span>之间，</span></span>
+      </span>
+      <span class="line">
+        <span class="w" style="--i:3"><span>觅得</span></span>
+        <span class="w" style="--i:4"><span>一丝</span></span>
+        <span class="w" style="--i:5"><span><em>惬意</em>。</span></span>
+      </span>
+    </h1>
+    <a class="hero-cta" href="#agenda">today — 看今天的安排</a>
+    <div class="hero-log">
+      <b id="log-today">00</b> today
+      <span class="dotsep">·</span>
+      <b id="log-ritual">00</b> ritual days
+      <span class="dotsep">·</span>
+      <b id="log-focus">00</b> focus min
+      <span class="dotsep">·</span>
+      <button class="linkbtn" id="hero-notify">notify — 开启提醒</button>
+    </div>
+    <p class="hero-watch" id="hero-watch" hidden></p>
+  </section>
+
+  <section class="block" id="agenda">
+    <h2 class="sec-label">agenda — 接下来的事 <b id="sec-count">00</b></h2>
+
+    <ol class="agenda-list" id="agenda-list"></ol>
+
+    <form class="composer" id="event-form" autocomplete="off">
+      <input class="c-title" id="f-title" maxlength="60" required placeholder="要做什么？">
+      <div class="c-row">
+        <input type="date" id="f-date" required>
+        <input type="time" id="f-time" value="09:00" required>
+        <select id="f-remind" title="提前提醒">
+          <option value="0">准时提醒</option>
+          <option value="5">提前 5 分钟</option>
+          <option value="10" selected>提前 10 分钟</option>
+          <option value="30">提前 30 分钟</option>
+          <option value="60">提前 1 小时</option>
+          <option value="1440">提前 1 天</option>
+        </select>
+        <select id="f-cat" title="分类">
+          <option value="work">工作</option>
+          <option value="life">生活</option>
+          <option value="study">学习</option>
+          <option value="other">其他</option>
+        </select>
+        <button class="btn-solid" type="submit" id="btn-save">收下</button>
+        <button class="btn-plain" type="button" id="btn-cancel" hidden>取消</button>
+      </div>
+      <input class="c-note" id="f-note" maxlength="120" placeholder="备注（可选）：地点、要带的东西…">
+    </form>
+    <p class="foot-hint" id="notify-hint">提醒会在到点前弹出系统通知。</p>
+  </section>
+
+  <section class="block" id="focus">
+    <h2 class="sec-label">focus — 一次只做一件事</h2>
+    <div class="focus-wrap">
+      <div class="ring-box">
+        <svg class="ring" viewBox="0 0 220 220">
+          <circle class="ring-track" cx="110" cy="110" r="98"></circle>
+          <circle class="ring-fill" id="ring-fill" cx="110" cy="110" r="98" transform="rotate(-90 110 110)"></circle>
+        </svg>
+        <div class="ring-mid">
+          <div class="ring-time" id="focus-time">25:00</div>
+          <div class="ring-cap" id="focus-cap">专注 · 未开始</div>
+        </div>
+      </div>
+      <div class="focus-side">
+        <p class="focus-note" id="focus-note">选一段时间，把手机反过来放。</p>
+        <div class="focus-btns">
+          <button class="btn-solid" id="focus-start">开始</button>
+          <button class="btn-dark" id="focus-reset">重置</button>
+        </div>
+        <div class="focus-lens">
+          <button class="chip" data-min="25">25 分</button>
+          <button class="chip" data-min="50">50 分</button>
+          <button class="chip" data-min="5">5 分</button>
+        </div>
+        <p class="focus-stat">今天已专注 <b id="focus-total">0</b> 分钟</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="ritual">
+    <h2 class="sec-label">ritual — 小小的坚持</h2>
+    <div id="ritual-list"></div>
+    <form class="composer slim" id="habit-form" autocomplete="off">
+      <input class="c-title" id="f-habit" maxlength="20" required placeholder="加一个想坚持的小事，比如「读 10 页」">
+      <button class="btn-solid" type="submit">加</button>
+    </form>
+  </section>
+
+  <section class="block" id="notes">
+    <h2 class="sec-label">notes — 随手记 <b id="note-count">00</b></h2>
+    <div class="notes-list" id="notes-list"></div>
+    <form class="composer slim" id="note-form" autocomplete="off">
+      <input class="c-title" id="f-note-text" maxlength="120" required placeholder="此刻想到的一句话…">
+      <button class="btn-solid" type="submit">写下</button>
+    </form>
+  </section>
+</main>
+
+<footer class="site-foot">
+  <div class="foot-in">
+    <p class="foot-id">羽 <span class="sep">·</span> idle hours</p>
+    <div class="foot-tools">
+      <button class="linkbtn" id="btn-export">导出备份</button>
+      <button class="linkbtn" id="btn-import">导入备份</button>
+      <button class="linkbtn" id="btn-clear">清空已完成</button>
+      <input type="file" id="file-input" accept="application/json" hidden>
+    </div>
+    <p class="foot-note">所有数据只存在这台设备的浏览器里，不上传任何服务器。</p>
+  </div>
+</footer>
+
+<div id="toast-wrap"></div>
+<script src="app.js"></script>
+</body>
+</html>

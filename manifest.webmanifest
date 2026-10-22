@@ -1,0 +1,25 @@
+{
+  "name": "羽 · 半日闲",
+  "short_name": "半日闲",
+  "description": "一个安静的个人主页：日程提醒、专注计时、习惯打卡和几句随手记。",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#EFF5FC",
+  "theme_color": "#EFF5FC",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
