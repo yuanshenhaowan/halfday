@@ -790,20 +790,100 @@
     return btoa(bin);
   }
 
-  function publish() {
-    var pat = getPat();
-    if (!pat) { toast("没有发布凭证", "先点右上角的「羽」填一枚", { kind: "warn" }); return; }
-    if (PUB.busy) return;
-    PUB.busy = true;
-    refreshOwnerUI();
+  /* ---------- 日历订阅（calendar.ics） ----------
+     为什么要有这一份：网页里的提醒只在页面活着的时候跑，关掉就没了。
+     把日程写成 iCalendar，交给系统日历去提醒 —— 那是操作系统管的，跟浏览器死活无关。
+     ⚠️ 时间一律写成 UTC（带 Z），这样不必附 VTIMEZONE，任何日历客户端都不会读错时区。 */
+  var CAL_PATH = "calendar.ics";
+  var CAL_URL = "https://" + REPO.owner + ".github.io/" + REPO.name + "/" + CAL_PATH;
 
-    var url = API + "/repos/" + REPO.owner + "/" + REPO.name + "/contents/" + REPO.path;
-    var text = JSON.stringify(payload(), null, 2) + "\n";
+  function icsEsc(s) {
+    return String(s == null ? "" : s)
+      .replace(/\\/g, "\\\\")
+      .replace(/;/g, "\\;")
+      .replace(/,/g, "\\,")
+      .replace(/\r?\n/g, "\\n");
+  }
 
-    fetch(url, { headers: ghHeaders(pat) })
+  /* RFC 5545：一行不超过 75 字节，续行以一个空格开头。
+     折断点必须按**字节**算，否则会把一个汉字（UTF-8 三字节）劈成两半。 */
+  function icsFold(line) {
+    var out = [], cur = "", bytes = 0;
+    for (var i = 0; i < line.length; i++) {
+      var ch = line.charAt(i);
+      var b = new TextEncoder().encode(ch).length;
+      if (bytes + b > 73) { out.push(cur); cur = " "; bytes = 1; }
+      cur += ch;
+      bytes += b;
+    }
+    out.push(cur);
+    return out.join("\r\n");
+  }
+
+  function icsStamp(d) {
+    return d.getUTCFullYear() + pad(d.getUTCMonth() + 1) + pad(d.getUTCDate()) +
+      "T" + pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + pad(d.getUTCSeconds()) + "Z";
+  }
+
+  function icsAlarm(min) {
+    min = Number(min) || 0;
+    if (min === 0) return "PT0M";
+    if (min % 1440 === 0) return "-P" + (min / 1440) + "D";
+    return "-PT" + min + "M";
+  }
+
+  function icsText() {
+    var now = new Date();
+    var lines = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//yu-banrixian//halfday//CN",
+      "CALSCALE:GREGORIAN",
+      "METHOD:PUBLISH",
+      "X-WR-CALNAME:" + icsEsc("羽 · 半日闲"),
+      "X-WR-TIMEZONE:Asia/Shanghai",
+      "REFRESH-INTERVAL;VALUE=DURATION:PT1H",
+      "X-PUBLISHED-TTL:PT1H"
+    ];
+
+    /* 只收还没做的：做完的事留在日历里只是噪音 */
+    DB.events.filter(function (e) { return e && e.title && !e.done; }).forEach(function (ev) {
+      var start = new Date(ev.date + "T" + (ev.time || "00:00") + ":00");
+      if (isNaN(start.getTime())) return;
+      var end = new Date(start.getTime() + 30 * 60000);
+      var cat = CAT[ev.cat] || CAT.other;
+
+      lines.push(
+        "BEGIN:VEVENT",
+        "UID:" + String(ev.id || start.getTime()) + "@halfday",
+        "DTSTAMP:" + icsStamp(now),
+        "DTSTART:" + icsStamp(start),
+        "DTEND:" + icsStamp(end),
+        "SUMMARY:" + icsEsc(ev.title),
+        "CATEGORIES:" + icsEsc(cat.label)
+      );
+      if (ev.note) lines.push("DESCRIPTION:" + icsEsc(ev.note));
+      lines.push(
+        "BEGIN:VALARM",
+        "TRIGGER:" + icsAlarm(ev.remind),
+        "ACTION:DISPLAY",
+        "DESCRIPTION:" + icsEsc(ev.title),
+        "END:VALARM",
+        "END:VEVENT"
+      );
+    });
+
+    lines.push("END:VCALENDAR");
+    return lines.map(icsFold).join("\r\n") + "\r\n";
+  }
+
+  /* 往仓库写一个文件：先取 sha，再 PUT 覆盖 */
+  function ghPut(path, text, pat) {
+    var url = API + "/repos/" + REPO.owner + "/" + REPO.name + "/contents/" + path;
+    return fetch(url, { headers: ghHeaders(pat) })
       .then(function (r) {
         if (r.status === 404) return null;
-        if (!r.ok) throw new Error("读不到远端那份快照（" + r.status + "）");
+        if (!r.ok) throw new Error("读不到远端 " + path + "（" + r.status + "）");
         return r.json();
       })
       .then(function (cur) {
@@ -821,7 +901,20 @@
         return r.json().catch(function () { return {}; }).then(function (j) {
           throw new Error((j && j.message) || ("写入失败（" + r.status + "）"));
         });
-      })
+      });
+  }
+
+  function publish() {
+    var pat = getPat();
+    if (!pat) { toast("没有发布凭证", "先点右上角的「羽」填一枚", { kind: "warn" }); return; }
+    if (PUB.busy) return;
+    PUB.busy = true;
+    refreshOwnerUI();
+
+    var text = JSON.stringify(payload(), null, 2) + "\n";
+
+    ghPut(REPO.path, text, pat)
+      .then(function () { return ghPut(CAL_PATH, icsText(), pat); })
       .then(function () {
         REMOTE.sig = contentSig();
         REMOTE.publishedAt = new Date().toISOString();
@@ -914,12 +1007,20 @@
         '<button class="btn-solid" id="pub-here" type="button">发布</button>' +
         '<button class="btn-plain" id="pub-pull" type="button">丢弃本地改动</button>' +
         "</div>" +
+        '<div class="cal-box">' +
+        '<p class="cal-cap">日历订阅 · 关掉网页也会提醒</p>' +
+        '<code class="cal-url" id="cal-url">' + esc(CAL_URL) + "</code>" +
+        '<button class="btn-plain cal-copy" id="cal-copy" type="button">复制地址</button>' +
+        '<p class="auth-hint">填进手机或电脑日历的「订阅日历 / 添加日历网址」。每次点「发布」它会跟着更新，' +
+        "到点由系统弹提醒 —— 这个网页关着也响。</p>" +
+        "</div>" +
         '<p class="auth-hint">「丢弃本地改动」会把页面换成线上那份快照，这台机器上没发布的改动就没了。</p>' +
         '<div class="auth-row">' +
         '<button class="btn-plain" id="pat-out" type="button">移除这台设备的凭证</button>' +
         "</div>";
       $("#pub-here").addEventListener("click", function () { closeAuth(); publish(); });
       $("#pub-pull").addEventListener("click", discardLocal);
+      $("#cal-copy").addEventListener("click", copyCalUrl);
       $("#pat-out").addEventListener("click", removePat);
       return;
     }
@@ -967,8 +1068,7 @@
     });
   }
 
-  function removePat() {
-    setPat("");
+  function removePat() {    setPat("");
     OWNER.login = "";
     OWNER.verified = false;
     closeAuth();
@@ -990,6 +1090,30 @@
       refreshOwnerUI();
       toast("已换成线上那份", "本地没发布的改动没了");
     });
+  }
+
+  function copyCalUrl() {
+    var done = function () { toast("地址已复制", "粘到日历的「订阅日历」里"); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(CAL_URL).then(done).catch(function () { fallbackCopy(); });
+      return;
+    }
+    fallbackCopy();
+
+    function fallbackCopy() {
+      var ta = document.createElement("textarea");
+      ta.value = CAL_URL;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand("copy"); } catch (e) {}
+      document.body.removeChild(ta);
+      if (ok) done();
+      else toast("复制不了", "手动选中上面那行地址再复制", { kind: "warn" });
+    }
   }
 
   $("#auth-btn").addEventListener("click", openAuth);

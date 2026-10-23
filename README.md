@@ -25,14 +25,32 @@
 |---|---|
 | `index.html` | 页面骨架 |
 | `style.css` | 全部样式（璃月风 · 浅蓝） |
-| `app.js` | 交互 + 发布（GitHub Contents API） |
+| `app.js` | 交互 + 发布（GitHub Contents API）+ 生成日历 |
 | `data/content.json` | 内容快照 —— 全站唯一的内容来源 |
+| `calendar.ics` | 日历订阅源，发布时随内容一起重写 |
 | `sw.js` | 离线缓存（`content.json` 走网络优先，不会用旧内容顶上去） |
+
+## 提醒：网页关着怎么办
+
+页面里的提醒靠 `setInterval` 到点调通知接口，**只在页面活着时跑**，关掉就没了。
+
+要看得到「关了网页也提醒」，用日历订阅：
+
+```
+https://yuanshenhaowan.github.io/halfday/calendar.ics
+```
+
+填进 iPhone / Android / 电脑日历的「订阅日历 · 添加日历网址」。这份 `.ics` 在每次「发布」时重写，
+日历客户端定期拉取后自动跟进；每个日程的「提前 N 分钟」写成 `VALARM`，到点由**系统**弹提醒，
+跟浏览器死活无关。
+
+实现要点：时间一律写 UTC（带 `Z`），不附 `VTIMEZONE`，任何客户端都不会读错时区；
+按 RFC 5545 折行，折点是按 UTF-8 **字节**算的（不然会把汉字劈成两半）。已完成的事不进日历。
 
 ## 发布流程
 
 1. 主人在页面上改内容 → 改动先落在本机 localStorage，底部浮出「有改动还没发布」。
-2. 点「发布」→ `GET` 远端文件的 sha → `PUT` 覆盖 → 仓库多一个 commit。
+2. 点「发布」→ 依次 `PUT` 两个文件：`data/content.json`、`calendar.ics`。
 3. GitHub Pages 大约 30 秒后重建完成，访客刷新即见。
 
 ## 本地跑
