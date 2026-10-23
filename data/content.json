@@ -1,7 +1,44 @@
 {
   "v": 3,
-  "published_at": "2026-10-23T03:40:48.007Z",
-  "events": [],
-  "habits": [],
-  "notes": []
+  "published_at": "2026-10-23T04:32:13.186Z",
+  "events": [
+    {
+      "title": "导师微沙龙",
+      "date": "2026-10-23",
+      "time": "17:00",
+      "remind": 30,
+      "cat": "work",
+      "note": "李兆基B643-2",
+      "id": "17927298869158e75",
+      "done": false,
+      "notified": false
+    },
+    {
+      "title": "乒乓球俱乐部活动",
+      "date": "2026-10-25",
+      "time": "19:00",
+      "remind": 10,
+      "cat": "life",
+      "note": "北体",
+      "id": "1792729914898030f",
+      "done": false,
+      "notified": false
+    }
+  ],
+  "habits": [
+    {
+      "id": "h1792729806250",
+      "name": "跑3000m",
+      "days": {
+        "2026-10-22": true
+      }
+    }
+  ],
+  "notes": [
+    {
+      "id": "seedn1",
+      "text": "雨后的人行道反着光，走路像在翻一本没裁开的书。",
+      "ts": 1792684704740
+    }
+  ]
 }
