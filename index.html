@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>羽 · 半日闲</title>
-<meta name="description" content="一个安静的个人主页：日程提醒、专注计时、习惯打卡和几句随手记。">
+<meta name="description" content="羽的半日闲：日程、习惯打卡和几句随手记。">
 <meta name="theme-color" content="#EFF5FC">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="manifest" href="manifest.webmanifest">
@@ -43,9 +43,9 @@
   <nav class="nav-links">
     <a href="#top" class="here">首页</a>
     <a href="#agenda">日程</a>
-    <a href="#focus">专注</a>
     <a href="#ritual">打卡</a>
     <a href="#notes">随记</a>
+    <button class="auth-pill" id="auth-btn" type="button">访客</button>
     <div class="display">
       <button class="icon-toggle" id="settings-toggle" aria-expanded="false" aria-controls="display-settings" aria-label="显示设置" title="显示设置">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -120,9 +120,9 @@
       <span class="dotsep">·</span>
       <b id="log-ritual">00</b> ritual days
       <span class="dotsep">·</span>
-      <b id="log-focus">00</b> focus min
-      <span class="dotsep">·</span>
       <button class="linkbtn" id="hero-notify">notify — 开启提醒</button>
+      <span class="ro-tag" id="ro-tag" hidden>访客 · 只读</span>
+      <span class="ro-stamp" id="ro-stamp" hidden></span>
     </div>
     <p class="hero-watch" id="hero-watch" hidden></p>
   </section>
@@ -159,35 +159,6 @@
     <p class="foot-hint" id="notify-hint">提醒会在到点前弹出系统通知。</p>
   </section>
 
-  <section class="block" id="focus">
-    <h2 class="sec-label">focus — 一次只做一件事</h2>
-    <div class="focus-wrap">
-      <div class="ring-box">
-        <svg class="ring" viewBox="0 0 220 220">
-          <circle class="ring-track" cx="110" cy="110" r="98"></circle>
-          <circle class="ring-fill" id="ring-fill" cx="110" cy="110" r="98" transform="rotate(-90 110 110)"></circle>
-        </svg>
-        <div class="ring-mid">
-          <div class="ring-time" id="focus-time">25:00</div>
-          <div class="ring-cap" id="focus-cap">专注 · 未开始</div>
-        </div>
-      </div>
-      <div class="focus-side">
-        <p class="focus-note" id="focus-note">选一段时间，把手机反过来放。</p>
-        <div class="focus-btns">
-          <button class="btn-solid" id="focus-start">开始</button>
-          <button class="btn-dark" id="focus-reset">重置</button>
-        </div>
-        <div class="focus-lens">
-          <button class="chip" data-min="25">25 分</button>
-          <button class="chip" data-min="50">50 分</button>
-          <button class="chip" data-min="5">5 分</button>
-        </div>
-        <p class="focus-stat">今天已专注 <b id="focus-total">0</b> 分钟</p>
-      </div>
-    </div>
-  </section>
-
   <section class="block" id="ritual">
     <h2 class="sec-label">ritual — 小小的坚持</h2>
     <div id="ritual-list"></div>
@@ -216,11 +187,27 @@
       <button class="linkbtn" id="btn-clear">清空已完成</button>
       <input type="file" id="file-input" accept="application/json" hidden>
     </div>
-    <p class="foot-note">所有数据只存在这台设备的浏览器里，不上传任何服务器。</p>
+    <p class="foot-note" id="foot-note">内容由我一人维护，访客可以看，不能改。</p>
   </div>
 </footer>
 
+<!-- 发布：账号 / 凭证 -->
+<div class="modal-scrim" id="auth-modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+    <button class="modal-x" id="auth-close" type="button" aria-label="关闭">✕</button>
+    <p class="modal-cap">visitor</p>
+    <h2 class="modal-title" id="auth-title">这个站只有一个人能改</h2>
+    <div id="auth-body"></div>
+  </div>
+</div>
+
+<!-- 有改动没发布时，浮在底下 -->
+<div class="pubbar" id="pub-bar" hidden>
+  <span class="pubbar-t" id="pubbar-t">有改动还没发布</span>
+  <button class="btn-solid" id="pub-go" type="button">发布</button>
+</div>
+
 <div id="toast-wrap"></div>
-<script src="app.js"></script>
+<script defer src="app.js"></script>
 </body>
 </html>

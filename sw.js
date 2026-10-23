@@ -1,9 +1,10 @@
 /* 羽 · 半日闲 — Service Worker
    策略：
    - 页面（HTML）走网络优先，保证拿到最新版；断网或 403 时回落到缓存。
-   - 静态资源走 stale-while-revalidate：先用缓存秒开，同时后台更新。 */
-const CACHE = "yu-banrixian-v5";
-const ASSETS = ["./", "./index.html", "./style.css", "./app.js", "./icon.svg", "./manifest.webmanifest", "./bg.jpg"];
+   - data/content.json 也走网络优先：它一变，整站内容就变了，不能用旧缓存顶上去。
+   - 其余静态资源走 stale-while-revalidate：先用缓存秒开，同时后台更新。 */
+const CACHE = "yu-banrixian-v7";
+const ASSETS = ["./", "./index.html", "./style.css", "./app.js", "./icon.svg", "./manifest.webmanifest", "./bg.jpg", "./data/content.json"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
@@ -35,6 +36,18 @@ self.addEventListener("fetch", (e) => {
 
   const isHTML = req.mode === "navigate" ||
     (req.headers.get("accept") || "").includes("text/html");
+
+  // 内容快照：网络优先，拿不到才用缓存里那份
+  if (url.pathname.endsWith("/data/content.json")) {
+    e.respondWith(
+      fetch(req)
+        .then((res) => { put(req, res); return res; })
+        .catch(() => caches.match(req).then((hit) => hit || new Response("{}", {
+          headers: { "Content-Type": "application/json" }
+        })))
+    );
+    return;
+  }
 
   if (isHTML) {
     e.respondWith(

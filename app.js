@@ -1,6 +1,7 @@
 /* ============================================================
    羽 · 半日闲 — 交互脚本
-   纯原生 JS，无依赖。数据存 localStorage。
+   纯原生 JS，无依赖。没有服务端、没有登录、没有数据库。
+   线上站是 data/content.json 的一份静态快照；只有拿着发布凭证的人能重写它。
    ============================================================ */
 (function () {
   "use strict";
@@ -20,11 +21,10 @@
     events: [],
     habits: [],
     notes: [],
-    focusLog: {},
     settings: { theme: "light", fog: "normal", grain: "on", fireflies: "on", enter: "auto" }
   };
 
-  var ui = { editingId: null, focusMin: 25, focusLeft: 25 * 60, focusEndAt: 0, focusRunning: false, focusStarted: false };
+  var ui = { editingId: null };
 
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
@@ -92,6 +92,7 @@
   function save() {
     try { localStorage.setItem(STORE, JSON.stringify(DB)); }
     catch (e) { toast("存不下了", "浏览器存储已满，建议先导出备份", { kind: "warn" }); }
+    afterChange();
   }
 
   /* ---------- 3. 声音与浮窗 ---------- */
@@ -208,6 +209,7 @@
   }
 
   function checkReminders() {
+    if (!canEdit()) return;
     var now = Date.now(), changed = false;
     DB.events.forEach(function (ev) {
       if (ev.done || ev.notified) return;
@@ -361,6 +363,7 @@
 
   $("#event-form").addEventListener("submit", function (e) {
     e.preventDefault();
+    if (!canEdit()) return;
     var t = $("#f-title").value.trim();
     var d = $("#f-date").value, tm = $("#f-time").value;
     if (!t || !d || !tm) { toast("还差一点", "名称、日期、时间都要有", { kind: "warn" }); return; }
@@ -391,6 +394,7 @@
   $("#btn-cancel").addEventListener("click", resetForm);
 
   $("#agenda-list").addEventListener("click", function (e) {
+    if (!canEdit()) return;
     var btn = e.target.closest("button[data-act]");
     if (!btn) return;
     var li = btn.closest(".agenda-item");
@@ -427,80 +431,6 @@
       $("#f-title").focus();
       $("#agenda").scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  });
-
-  /* ---------- 8. 专注 ---------- */
-  var RING_C = 2 * Math.PI * 98;
-
-  function focusRender() {
-    var m = Math.floor(ui.focusLeft / 60), s = ui.focusLeft % 60;
-    $("#focus-time").textContent = pad(m) + ":" + pad(s);
-    var total = ui.focusMin * 60;
-    var p = total ? ui.focusLeft / total : 0;
-    $("#ring-fill").style.strokeDasharray = RING_C;
-    $("#ring-fill").style.strokeDashoffset = String(RING_C * (1 - p));
-    $("#focus-start").textContent = ui.focusRunning ? "暂停" : (ui.focusStarted ? "继续" : "开始");
-    $("#focus-cap").textContent = ui.focusRunning
-      ? "专注中 · " + ui.focusMin + " 分"
-      : (ui.focusLeft === ui.focusMin * 60 ? "专注 · 未开始" : "已暂停");
-    $$(".chip").forEach(function (c) {
-      c.classList.toggle("active", Number(c.dataset.min) === ui.focusMin);
-    });
-    var t = DB.focusLog[today()] || 0;
-    $("#focus-total").textContent = t;
-    $("#log-focus").textContent = pad(t);
-  }
-
-  function focusTick() {
-    if (!ui.focusRunning) return;
-    var left = Math.max(0, Math.round((ui.focusEndAt - Date.now()) / 1000));
-    ui.focusLeft = left;
-    if (left <= 0) {
-      ui.focusRunning = false;
-      ui.focusStarted = false;
-      DB.focusLog[today()] = (DB.focusLog[today()] || 0) + ui.focusMin;
-      save();
-      chime(3);
-      toast("专注结束", ui.focusMin + " 分钟，起来动一下", { keep: true });
-      if (canNotify() && Notification.permission === "granted") {
-        try { new Notification("专注结束", { body: ui.focusMin + " 分钟结束了，休息一下。" }); } catch (err) {}
-      }
-      $("#focus-note").textContent = "完成了 " + ui.focusMin + " 分钟。喝口水，看看窗外。";
-    }
-    focusRender();
-  }
-
-  $("#focus-start").addEventListener("click", function () {
-    if (ui.focusRunning) {
-      ui.focusRunning = false;
-      ui.focusLeft = Math.max(0, Math.round((ui.focusEndAt - Date.now()) / 1000));
-    } else {
-      if (ui.focusLeft <= 0) ui.focusLeft = ui.focusMin * 60;
-      ui.focusEndAt = Date.now() + ui.focusLeft * 1000;
-      ui.focusRunning = true;
-      ui.focusStarted = true;
-      $("#focus-note").textContent = "开始 " + ui.focusMin + " 分钟。手机反过来，浏览器关掉别的标签。";
-      chime(1);
-    }
-    focusRender();
-  });
-
-  $("#focus-reset").addEventListener("click", function () {
-    ui.focusRunning = false;
-    ui.focusStarted = false;
-    ui.focusLeft = ui.focusMin * 60;
-    $("#focus-note").textContent = "选一段时间，把手机反过来放。";
-    focusRender();
-  });
-
-  $$(".chip").forEach(function (c) {
-    c.addEventListener("click", function () {
-      ui.focusMin = Number(c.dataset.min);
-      ui.focusRunning = false;
-      ui.focusStarted = false;
-      ui.focusLeft = ui.focusMin * 60;
-      focusRender();
-    });
   });
 
   /* ---------- 9. 打卡 ---------- */
@@ -553,6 +483,7 @@
   }
 
   $("#ritual-list").addEventListener("click", function (e) {
+    if (!canEdit()) return;
     var del = e.target.closest('[data-act="del-habit"]');
     if (del) {
       var id = del.closest(".habit").dataset.habit;
@@ -574,6 +505,7 @@
 
   $("#habit-form").addEventListener("submit", function (e) {
     e.preventDefault();
+    if (!canEdit()) return;
     var v = $("#f-habit").value.trim();
     if (!v) return;
     DB.habits.push({ id: "h" + Date.now(), name: v, days: {} });
@@ -602,6 +534,7 @@
 
   $("#note-form").addEventListener("submit", function (e) {
     e.preventDefault();
+    if (!canEdit()) return;
     var v = $("#f-note-text").value.trim();
     if (!v) return;
     DB.notes.unshift({ id: "n" + Date.now(), text: v, ts: Date.now() });
@@ -610,6 +543,7 @@
   });
 
   $("#notes-list").addEventListener("click", function (e) {
+    if (!canEdit()) return;
     var btn = e.target.closest('[data-act="del-note"]');
     if (!btn) return;
     var id = btn.closest(".note").dataset.id;
@@ -621,7 +555,6 @@
   function renderStats() {
     var undone = DB.events.filter(function (e) { return !e.done; });
     $("#log-today").textContent = pad(undone.filter(function (e) { return dayDiff(e.date) === 0; }).length);
-    $("#log-focus").textContent = pad(DB.focusLog[today()] || 0);
   }
 
   /* ---------- 12. 导入导出 ---------- */
@@ -639,6 +572,7 @@
   $("#btn-import").addEventListener("click", function () { $("#file-input").click(); });
 
   $("#file-input").addEventListener("change", function (e) {
+    if (!canEdit()) return;
     var f = e.target.files && e.target.files[0];
     if (!f) return;
     var r = new FileReader();
@@ -676,11 +610,6 @@
           });
           DB.notes.sort(function (a, b) { return b.ts - a.ts; });
         }
-        if (d.focusLog && typeof d.focusLog === "object") {
-          Object.keys(d.focusLog).forEach(function (k) {
-            DB.focusLog[k] = Math.max(DB.focusLog[k] || 0, Number(d.focusLog[k]) || 0);
-          });
-        }
         save(); renderAll();
         toast("导入完成", "新增 " + added + " 条");
       } catch (err) {
@@ -692,6 +621,7 @@
   });
 
   $("#btn-clear").addEventListener("click", function () {
+    if (!canEdit()) return;
     var n = DB.events.filter(function (e) { return e.done; }).length;
     if (!n) { toast("没有已完成", "不用清"); return; }
     DB.events = DB.events.filter(function (e) { return !e.done; });
@@ -739,7 +669,7 @@
   $("#hero-notify").addEventListener("click", function () { askNotify(false); });
 
   // 导航当前区块高亮
-  var sections = ["top", "agenda", "focus", "ritual", "notes"].map(function (id) {
+  var sections = ["top", "agenda", "ritual", "notes"].map(function (id) {
     return document.getElementById(id);
   }).filter(Boolean);
   var navLinks = $$(".nav-links > a");
@@ -757,9 +687,357 @@
     sections.forEach(function (s) { io.observe(s); });
   }
 
-  /* ---------- 14. 启动 ---------- */
+  /* ---------- 14. 发布：仓库里那份快照是唯一真相 ---------- */
+  /* 这一版的取舍：没有服务端、没有登录、没有数据库。
+     线上站只是 data/content.json 的一份静态快照，访客拿到的就是它渲染出来的字节。
+     唯一能重写这份快照的人，是手里有「发布凭证」的人 —— 一枚只对本站有写权限的
+     GitHub token，存在他自己那台浏览器里。别的机器上没有那把钥匙，
+     所以页面上任何一个写着「改」的地方，在他们那儿根本不存在。 */
+  var REPO = { owner: "yuanshenhaowan", name: "halfday", branch: "main", path: "data/content.json" };
+  var PAT_KEY = "yu_publish_pat";
+  var API = "https://api.github.com";
+
+  var ROLE = "visitor";
+  var OWNER = { login: "", verified: false };
+  var REMOTE = { publishedAt: null, sig: "", ready: false };
+  var PUB = { busy: false, lastAt: 0 };
+
+  function canon(v) {
+    if (Array.isArray(v)) return "[" + v.map(canon).join(",") + "]";
+    if (v && typeof v === "object") {
+      return "{" + Object.keys(v).sort().map(function (k) {
+        return JSON.stringify(k) + ":" + canon(v[k]);
+      }).join(",") + "}";
+    }
+    return JSON.stringify(v === undefined ? null : v);
+  }
+
+  /* 签名只看内容，不看 notified 这种运行时留下的标记 ——
+     否则提醒一响，「有改动没发布」就自己亮起来，那是个假信号。 */
+  function sigOf(src) {
+    return canon({
+      events: (src.events || []).map(function (e) {
+        var o = {};
+        Object.keys(e).forEach(function (k) { if (k !== "notified") o[k] = e[k]; });
+        return o;
+      }),
+      habits: src.habits || [],
+      notes: src.notes || []
+    });
+  }
+  function contentSig() { return sigOf(DB); }
+  function isDirty() { return ROLE === "owner" && REMOTE.ready && contentSig() !== REMOTE.sig; }
+
+  /* 一句判据管住所有写操作：这台设备上有凭证、而且验过了，才算主人 */
+  function canEdit() { return ROLE === "owner"; }
+
+  function payload() {
+    return {
+      v: 3,
+      published_at: new Date().toISOString(),
+      events: DB.events,
+      habits: DB.habits,
+      notes: DB.notes
+    };
+  }
+
+  function adoptContent(d) {
+    DB.events = Array.isArray(d.events) ? d.events.filter(function (e) { return e && e.title; }) : [];
+    DB.habits = Array.isArray(d.habits) ? d.habits.filter(function (h) { return h && h.name; }) : [];
+    DB.notes  = Array.isArray(d.notes)  ? d.notes.filter(function (n) { return n && n.text; })  : [];
+  }
+
+  function loadPublished() {
+    return fetch("data/content.json?_=" + Date.now(), { cache: "no-store" })
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .catch(function (e) {
+        console.warn("[content] 快照读不到", e && e.message);
+        return null;
+      });
+  }
+
+  /* --- 发布凭证 --- */
+  function ghHeaders(pat) {
+    return {
+      Authorization: "Bearer " + pat,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28"
+    };
+  }
+  function getPat() { try { return localStorage.getItem(PAT_KEY) || ""; } catch (e) { return ""; } }
+  function setPat(p) {
+    try { if (p) localStorage.setItem(PAT_KEY, p); else localStorage.removeItem(PAT_KEY); } catch (e) {}
+  }
+
+  function verifyPat(pat) {
+    return fetch(API + "/repos/" + REPO.owner + "/" + REPO.name, { headers: ghHeaders(pat) })
+      .then(function (r) {
+        if (r.status === 401) throw new Error("GitHub 不认这枚凭证：过期、撤销，或者抄漏了字符");
+        if (r.status === 404) throw new Error("这枚凭证看不到 " + REPO.owner + "/" + REPO.name + "，检查它授权的仓库范围");
+        if (!r.ok) throw new Error("GitHub 返回 " + r.status);
+        return r.json();
+      })
+      .then(function (d) {
+        var p = d.permissions || {};
+        if (!p.push) throw new Error("这枚凭证只有读权限，Contents 要设成 Read and write");
+        return d.full_name || (REPO.owner + "/" + REPO.name);
+      });
+  }
+
+  function b64utf8(str) {
+    var bytes = new TextEncoder().encode(str), bin = "";
+    for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin);
+  }
+
+  function publish() {
+    var pat = getPat();
+    if (!pat) { toast("没有发布凭证", "先点右上角的「羽」填一枚", { kind: "warn" }); return; }
+    if (PUB.busy) return;
+    PUB.busy = true;
+    refreshOwnerUI();
+
+    var url = API + "/repos/" + REPO.owner + "/" + REPO.name + "/contents/" + REPO.path;
+    var text = JSON.stringify(payload(), null, 2) + "\n";
+
+    fetch(url, { headers: ghHeaders(pat) })
+      .then(function (r) {
+        if (r.status === 404) return null;
+        if (!r.ok) throw new Error("读不到远端那份快照（" + r.status + "）");
+        return r.json();
+      })
+      .then(function (cur) {
+        var body = {
+          message: "content: " + new Date().toLocaleString("zh-CN", { hour12: false }),
+          content: b64utf8(text),
+          branch: REPO.branch
+        };
+        if (cur && cur.sha) body.sha = cur.sha;
+        return fetch(url, { method: "PUT", headers: ghHeaders(pat), body: JSON.stringify(body) });
+      })
+      .then(function (r) {
+        if (r.status === 409) throw new Error("远端刚被另一个窗口改过，刷新页面再来一次");
+        if (r.ok) return r.json();
+        return r.json().catch(function () { return {}; }).then(function (j) {
+          throw new Error((j && j.message) || ("写入失败（" + r.status + "）"));
+        });
+      })
+      .then(function () {
+        REMOTE.sig = contentSig();
+        REMOTE.publishedAt = new Date().toISOString();
+        PUB.lastAt = Date.now();
+        toast("已发布", "仓库更新了，GitHub Pages 大约 30 秒后重建完");
+      })
+      .catch(function (e) {
+        toast("发布失败", (e && e.message) || "换个网络再试", { kind: "warn" });
+      })
+      .then(function () {
+        PUB.busy = false;
+        refreshOwnerUI();
+        stampUpdated();
+      });
+  }
+
+  /* --- 角色与界面 --- */
+  function setRole(r) {
+    ROLE = r;
+    document.body.classList.toggle("is-visitor", r === "visitor");
+    document.body.classList.toggle("is-owner", r === "owner");
+    var tag = $("#ro-tag"); if (tag) tag.hidden = r !== "visitor";
+    var nb = $("#hero-notify"); if (nb) nb.hidden = r === "visitor";
+    var ab = $("#auth-btn"); if (ab) ab.textContent = r === "owner" ? "羽" : "访客";
+    var fn = $("#foot-note");
+    if (fn) fn.textContent = r === "visitor"
+      ? "以上内容由主人一人维护，访客只能看。"
+      : "改动先落在这台机器上，点「发布」才会到线上。";
+    renderAll();
+    stampUpdated();
+    refreshOwnerUI();
+    renderOwnerPanel();
+  }
+
+  /* 每次 save() 之后叫一次：只有内容真的和线上那份不一样，「发布」才亮 */
+  function afterChange() {
+    if (!REMOTE.ready) return;
+    refreshOwnerUI();
+  }
+
+  function refreshOwnerUI() {
+    var bar = $("#pub-bar");
+    if (!bar) return;
+    bar.hidden = !PUB.busy && !isDirty();
+    bar.classList.toggle("busy", PUB.busy);
+    var t = $("#pubbar-t");
+    if (t) {
+      if (PUB.busy) t.textContent = "正在写进仓库…";
+      else if (PUB.lastAt && Date.now() - PUB.lastAt < 90000) t.textContent = "已发布 · 等 Pages 重建";
+      else t.textContent = "有改动还没发布";
+    }
+    var go = $("#pub-go");
+    if (go) go.textContent = PUB.busy ? "发布中" : "发布";
+  }
+
+  function stampUpdated() {
+    var el = $("#ro-stamp");
+    if (!el) return;
+    if (!REMOTE.publishedAt) { el.hidden = true; return; }
+    var d = new Date(REMOTE.publishedAt);
+    el.textContent = "· 更新于 " + (d.getMonth() + 1) + "." + d.getDate() +
+      " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+    el.hidden = ROLE !== "visitor";
+  }
+
+  /* --- 面板 --- */
+  function openAuth() { $("#auth-modal").hidden = false; renderOwnerPanel(); }
+  function closeAuth() { $("#auth-modal").hidden = true; }
+  function authErr(msg) {
+    var e = $("#auth-err");
+    if (!e) return;
+    if (!msg) { e.hidden = true; return; }
+    e.textContent = msg;
+    e.hidden = false;
+  }
+
+  function renderOwnerPanel() {
+    var box = $("#auth-body");
+    if (!box) return;
+    var ttl = $("#auth-title");
+    var cap = $("#auth-modal .modal-cap");
+
+    if (ROLE === "owner") {
+      if (cap) cap.textContent = "publisher";
+      if (ttl) ttl.textContent = "发布";
+      box.innerHTML =
+        '<p class="auth-who">已接入<span>·</span>' + esc(OWNER.login || (REPO.owner + "/" + REPO.name)) + "</p>" +
+        '<p class="auth-hint">改动只在这台机器上。点「发布」，内容才会写进仓库，GitHub Pages 重建之后访客才看得到。</p>' +
+        '<div class="auth-row">' +
+        '<button class="btn-solid" id="pub-here" type="button">发布</button>' +
+        '<button class="btn-plain" id="pub-pull" type="button">丢弃本地改动</button>' +
+        "</div>" +
+        '<p class="auth-hint">「丢弃本地改动」会把页面换成线上那份快照，这台机器上没发布的改动就没了。</p>' +
+        '<div class="auth-row">' +
+        '<button class="btn-plain" id="pat-out" type="button">移除这台设备的凭证</button>' +
+        "</div>";
+      $("#pub-here").addEventListener("click", function () { closeAuth(); publish(); });
+      $("#pub-pull").addEventListener("click", discardLocal);
+      $("#pat-out").addEventListener("click", removePat);
+      return;
+    }
+
+    if (cap) cap.textContent = "visitor";
+    if (ttl) ttl.textContent = "这个站只有一个人能改";
+    box.innerHTML =
+      '<p class="auth-hint">你看到的一切，是构建那一次就写死的静态文件。访客拿到的只是字节 —— ' +
+      "没有账号、没有接口、没有一枚可以提交的表单。能重写它的人手里有一把「发布凭证」，存在他自己那台浏览器里。</p>" +
+      '<button class="btn-plain auth-submit" id="pat-open" type="button">我手里有发布凭证</button>' +
+      '<div id="pat-form" hidden>' +
+      '<label class="auth-field"><span>凭证</span>' +
+      '<input type="password" id="pat-input" autocomplete="off" spellcheck="false" placeholder="github_pat_… 或 ghp_…"></label>' +
+      '<p class="auth-err" id="auth-err" hidden></p>' +
+      '<button class="btn-solid auth-submit" id="pat-save" type="button">验证并保存到这台设备</button>' +
+      '<p class="auth-hint">在 GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens 新建一枚：' +
+      "只授权 <b>" + REPO.owner + "/" + REPO.name + "</b> 这一个仓库，权限只给 <b>Contents: Read and write</b>。" +
+      "凭证只存在这台浏览器的本地存储里，不经过任何服务器。</p>" +
+      "</div>";
+    $("#pat-open").addEventListener("click", function () {
+      $("#pat-form").hidden = false;
+      $("#pat-input").focus();
+    });
+    $("#pat-save").addEventListener("click", savePat);
+  }
+
+  function savePat() {
+    var v = $("#pat-input").value.trim();
+    if (!v) { authErr("先粘贴一枚凭证"); return; }
+    authErr("");
+    var btn = $("#pat-save");
+    btn.disabled = true;
+    btn.textContent = "验证中";
+    verifyPat(v).then(function (full) {
+      setPat(v);
+      OWNER.login = full;
+      OWNER.verified = true;
+      closeAuth();
+      setRole("owner");
+      toast("接上了", "这台设备现在可以改内容了");
+    }).catch(function (e) {
+      btn.disabled = false;
+      btn.textContent = "验证并保存到这台设备";
+      authErr((e && e.message) || "验证失败");
+    });
+  }
+
+  function removePat() {
+    setPat("");
+    OWNER.login = "";
+    OWNER.verified = false;
+    closeAuth();
+    setRole("visitor");
+    toast("已移除凭证", "这台设备回到访客视角");
+  }
+
+  function discardLocal() {
+    loadPublished().then(function (d) {
+      if (d) {
+        adoptContent(d);
+        REMOTE.publishedAt = d.published_at || null;
+        REMOTE.sig = sigOf(d);
+      }
+      try { localStorage.setItem(STORE, JSON.stringify(DB)); } catch (e) {}
+      closeAuth();
+      renderAll();
+      stampUpdated();
+      refreshOwnerUI();
+      toast("已换成线上那份", "本地没发布的改动没了");
+    });
+  }
+
+  $("#auth-btn").addEventListener("click", openAuth);
+  $("#auth-close").addEventListener("click", closeAuth);
+  $("#auth-modal").addEventListener("click", function (e) {
+    if (e.target === $("#auth-modal")) closeAuth();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !$("#auth-modal").hidden) closeAuth();
+  });
+  var pubGo = $("#pub-go");
+  if (pubGo) pubGo.addEventListener("click", publish);
+
+  /* --- 启动：先读快照，再看这台设备有没有凭证 --- */
+  function boot() {
+    var hadLocal = DB.events.length || DB.habits.length || DB.notes.length;
+
+    return loadPublished().then(function (d) {
+      if (d) {
+        REMOTE.publishedAt = d.published_at || null;
+        REMOTE.sig = sigOf(d);
+        if (!hadLocal) adoptContent(d);
+      } else {
+        REMOTE.publishedAt = null;
+        REMOTE.sig = sigOf({ events: [], habits: [], notes: [] });
+      }
+      REMOTE.ready = true;
+      renderAll();
+      stampUpdated();
+
+      var pat = getPat();
+      if (!pat) { setRole("visitor"); return; }
+      setRole("owner");
+      return verifyPat(pat).then(function (full) {
+        OWNER.login = full;
+        OWNER.verified = true;
+        renderOwnerPanel();
+        refreshOwnerUI();
+      }).catch(function (e) {
+        setRole("visitor");
+        toast("发布凭证不好使了", (e && e.message) || "点右上角重新填一次", { kind: "warn" });
+      });
+    });
+  }
+
+  /* ---------- 15. 启动 ---------- */
   function renderAll() {
-    renderAgenda(); renderHabits(); renderNotes(); renderStats(); focusRender();
+    renderAgenda(); renderHabits(); renderNotes(); renderStats();
   }
 
   load();
@@ -779,35 +1057,11 @@
   notifyUI();
   tickClock();
   checkReminders();
-
-  // 首次使用：放几条示例，让页面不空
-  if (!DB.events.length && !DB.notes.length && !DB.habits.length && !localStorage.getItem(STORE)) {
-    var now = new Date();
-    var later = new Date(now.getTime() + 40 * 60000);
-    later.setSeconds(0, 0);
-    later.setMinutes(Math.ceil(later.getMinutes() / 5) * 5); // 60 会自动进位到下一小时
-    var tmr = new Date(); tmr.setDate(tmr.getDate() + 1);
-    DB.events.push({
-      id: "seed1", title: "把这里换成你真正要做的事",
-      date: ymd(later), time: pad(later.getHours()) + ":" + pad(later.getMinutes()),
-      remind: 10, cat: "work", note: "点右边的 ✎ 可以改，✕ 可以删。",
-      done: false, notified: false
-    });
-    DB.events.push({
-      id: "seed2", title: "给自己留一段不被打扰的时间",
-      date: ymd(tmr), time: "09:00", remind: 30, cat: "life",
-      note: "", done: false, notified: false
-    });
-    var hd = {}; hd[today()] = true;
-    DB.habits.push({ id: "seedh1", name: "读 10 页书", days: hd });
-    DB.notes.unshift({ id: "seedn1", text: "雨后的人行道反着光，走路像在翻一本没裁开的书。", ts: Date.now() });
-    save(); renderAll();
-  }
+  boot();
 
   setInterval(function () {
     tickClock();
     checkReminders();
-    focusTick();
   }, 1000);
 
   // 相对时间（「还有 2 小时」）每 30 秒刷新一次，别每秒重绘列表
@@ -816,7 +1070,7 @@
     renderStats();
   }, 30000);
   document.addEventListener("visibilitychange", function () {
-    if (!document.hidden) { checkReminders(); focusTick(); renderAgenda(); }
+    if (!document.hidden) { checkReminders(); renderAgenda(); }
   });
 
   // PWA：离线可用（https / localhost 下才生效）
