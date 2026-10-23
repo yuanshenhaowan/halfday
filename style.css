@@ -763,9 +763,10 @@ html[data-theme="night"] .modal-scrim{background:rgba(8,18,32,.85);}
 html[data-theme="night"] .auth-submit{background:rgba(255,255,255,.07);color:var(--azure);}
 .auth-err{font-family:var(--f-mono);font-size:10.5px;color:var(--coral);margin:2px 0 8px;}
 .auth-hint{
-  font-family:var(--f-mono);font-size:10px;letter-spacing:.03em;
-  color:var(--ink-3);margin-top:12px;line-height:1.75;
+  font-family:var(--f-sans);font-size:12px;letter-spacing:.01em;
+  color:var(--ink-3);margin-top:12px;line-height:1.9;
 }
+.auth-hint b{color:var(--ink-2);font-weight:600;}
 .auth-who{font-family:var(--f-serif);font-size:15px;color:var(--ink-2);margin-bottom:16px;}
 .auth-who span{margin:0 6px;color:var(--sheen);}
 .auth-row{display:flex;gap:10px;margin-top:4px;}
